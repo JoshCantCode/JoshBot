@@ -1,17 +1,18 @@
-import process from 'node:process'
+import process from 'node:process';
 
-import { EntityRepository } from '@mikro-orm/core'
-import { constant } from 'case'
-import { Client, SimpleCommandMessage } from 'discordx'
-import osu from 'node-os-utils'
-import pidusage from 'pidusage'
-import { delay, inject } from 'tsyringe'
+import { EntityRepository } from '@mikro-orm/core';
+import { constant } from 'case';
+import { Client, SimpleCommandMessage } from 'discordx';
+import osu from 'node-os-utils';
+import pidusage from 'pidusage';
+import { Punishment } from 'src/entities/Punishment';
+import { delay, inject } from 'tsyringe';
 
-import { statsConfig } from '@/configs'
-import { Schedule, Service } from '@/decorators'
-import { Guild, Stat, User } from '@/entities'
-import { Database } from '@/services'
-import { datejs, formatDate, getTypeOfInteraction, resolveAction, resolveChannel, resolveGuild, resolveUser } from '@/utils/functions'
+import { statsConfig } from '@/configs';
+import { Schedule, Service } from '@/decorators';
+import { Guild, Stat, User } from '@/entities';
+import { Database } from '@/services';
+import { datejs, formatDate, getTypeOfInteraction, resolveAction, resolveChannel, resolveGuild, resolveUser } from '@/utils/functions';
 
 const allInteractions = {
 	$or: [
@@ -19,19 +20,23 @@ const allInteractions = {
 		{ type: 'CHAT_INPUT_COMMAND_INTERACTION' },
 		{ type: 'USER_CONTEXT_MENU_COMMAND_INTERACTION' },
 		{ type: 'MESSAGE_CONTEXT_MENU_COMMAND_INTERACTION' },
+		{ type: 'USER_BAN' },
+		{ type: 'USER_UNBAN' },
+		{ type: 'USER_WARN' },
+		{ type: 'USER_MUTE' },
 	],
-}
+};
 
 @Service()
 export class Stats {
 
-	private statsRepo: EntityRepository<Stat>
+	private statsRepo: EntityRepository<Stat>;
 
 	constructor(
 		private db: Database,
         @inject(delay(() => Client)) private client: Client
 	) {
-		this.statsRepo = this.db.get(Stat)
+		this.statsRepo = this.db.get(Stat);
 	}
 
 	/**
@@ -41,13 +46,13 @@ export class Stats {
 	 * @param additionalData in JSON format
 	 */
 	async register(type: string, value: string, additionalData?: any) {
-		const stat = new Stat()
-		stat.type = type
-		stat.value = value
+		const stat = new Stat();
+		stat.type = type;
+		stat.value = value;
 		if (additionalData)
-			stat.additionalData = additionalData
+			stat.additionalData = additionalData;
 
-		await this.db.em.persistAndFlush(stat)
+		await this.db.em.persistAndFlush(stat);
 	}
 
 	/**
@@ -56,19 +61,19 @@ export class Stats {
 	 */
 	async registerInteraction(interaction: AllInteractions) {
 		// we extract data from the interaction
-		const type = constant(getTypeOfInteraction(interaction)) as InteractionsConstants
+		const type = constant(getTypeOfInteraction(interaction)) as InteractionsConstants;
 		if (statsConfig.interaction.exclude.includes(type))
-			return
+			return;
 
-		const value = resolveAction(interaction)
+		const value = resolveAction(interaction);
 		const additionalData = {
 			user: resolveUser(interaction)?.id,
 			guild: resolveGuild(interaction)?.id || 'dm',
 			channel: resolveChannel(interaction)?.id,
-		}
+		};
 
 		// add it to the db
-		await this.register(type, value, additionalData)
+		await this.register(type, value, additionalData);
 	}
 
 	/**
@@ -77,16 +82,31 @@ export class Stats {
 	 */
 	async registerSimpleCommand(command: SimpleCommandMessage) {
 		// we extract data from the interaction
-		const type = 'SIMPLE_COMMAND_MESSAGE'
-		const value = command.name
+		const type = 'SIMPLE_COMMAND_MESSAGE';
+		const value = command.name;
 		const additionalData = {
 			user: command.message.author.id,
 			guild: command.message.guild?.id || 'dm',
 			channel: command.message.channel?.id,
-		}
+		};
 
 		// add it to the db
-		await this.register(type, value, additionalData)
+		await this.register(type, value, additionalData);
+	}
+
+	/**
+	 * Record a user ban and add it to the database.
+	 * @param punishment
+	 */
+	async registerPunishment(punishment: Punishment) {
+		const value = punishment.userId;
+		const additionalData = {
+			guild: punishment.guildId,
+			user: punishment.moderator,
+			reason: punishment.reason,
+		};
+
+		await this.register(punishment.type, value, additionalData);
 	}
 
 	/**
@@ -98,9 +118,9 @@ export class Stats {
 			TOTAL_GUILDS: this.client.guilds.cache.size,
 			TOTAL_ACTIVE_USERS: await this.db.get(User).count(),
 			TOTAL_COMMANDS: await this.statsRepo.count(allInteractions),
-		}
+		};
 
-		return totalStatsObj
+		return totalStatsObj;
 	}
 
 	/**
@@ -109,9 +129,9 @@ export class Stats {
 	async getLastInteraction() {
 		const lastInteraction = await this.statsRepo.findOne(allInteractions, {
 			orderBy: { createdAt: 'DESC' },
-		})
+		});
 
-		return lastInteraction
+		return lastInteraction;
 	}
 
 	/**
@@ -120,9 +140,9 @@ export class Stats {
 	async getLastGuildAdded() {
 		const guilds = await this.db.get(Guild).find({}, {
 			orderBy: { createdAt: 'DESC' },
-		})
+		});
 
-		return guilds[0]
+		return guilds[0];
 	}
 
 	/**
@@ -130,15 +150,15 @@ export class Stats {
 	 */
 	async getTopCommands() {
 		if ('createQueryBuilder' in this.db.em) {
-			const qb = this.db.em.createQueryBuilder(Stat)
+			const qb = this.db.em.createQueryBuilder(Stat);
 			const query = qb
 				.select(['type', 'value as name', 'count(*) as count'])
 				.where(allInteractions)
-				.groupBy(['type', 'value'])
+				.groupBy(['type', 'value']);
 
-			const slashCommands = await query.execute()
+			const slashCommands = await query.execute();
 
-			return slashCommands.sort((a: any, b: any) => b.count - a.count)
+			return slashCommands.sort((a: any, b: any) => b.count - a.count);
 		} else if ('aggregate' in this.db.em) {
 			// @ts-expect-error
 			const slashCommands = await this.db.em.aggregate(Stat, [
@@ -161,11 +181,11 @@ export class Stats {
 						},
 					},
 				},
-			])
+			]);
 
-			return slashCommands.sort((a: any, b: any) => b.count - a.count)
+			return slashCommands.sort((a: any, b: any) => b.count - a.count);
 		} else {
-			return []
+			return [];
 		}
 	}
 
@@ -179,9 +199,9 @@ export class Stats {
 			'51-100': 0,
 			'101-1000': 0,
 			'>1000': 0,
-		}
+		};
 
-		const users = await this.db.get(User).findAll()
+		const users = await this.db.get(User).findAll();
 
 		for (const user of users) {
 			const commandsCount = await this.db.get(Stat).count({
@@ -189,20 +209,20 @@ export class Stats {
 				additionalData: {
 					user: user.id,
 				},
-			})
+			});
 
 			if (commandsCount <= 10)
-				usersActivity['1-10']++
+				usersActivity['1-10']++;
 			else if (commandsCount <= 50)
-				usersActivity['11-50']++
+				usersActivity['11-50']++;
 			else if (commandsCount <= 100)
-				usersActivity['51-100']++
+				usersActivity['51-100']++;
 			else if (commandsCount <= 1000)
-				usersActivity['101-1000']++
-			else usersActivity['>1000']++
+				usersActivity['101-1000']++;
+			else usersActivity['>1000']++;
 		}
 
-		return usersActivity
+		return usersActivity;
 	}
 
 	/**
@@ -213,30 +233,30 @@ export class Stats {
 			id: string
 			name: string
 			totalCommands: number
-		}[] = []
+		}[] = [];
 
-		const guilds = await this.db.get(Guild).getActiveGuilds()
+		const guilds = await this.db.get(Guild).getActiveGuilds();
 
 		for (const guild of guilds) {
-			const discordGuild = await this.client.guilds.fetch(guild.id).catch(() => null)
+			const discordGuild = await this.client.guilds.fetch(guild.id).catch(() => null);
 			if (!discordGuild)
-				continue
+				continue;
 
 			const commandsCount = await this.db.get(Stat).count({
 				...allInteractions,
 				additionalData: {
 					guild: guild.id,
 				},
-			})
+			});
 
 			topGuilds.push({
 				id: guild.id,
 				name: discordGuild?.name || '',
 				totalCommands: commandsCount,
-			})
+			});
 		}
 
-		return topGuilds.sort((a, b) => b.totalCommands - a.totalCommands)
+		return topGuilds.sort((a, b) => b.totalCommands - a.totalCommands);
 	}
 
 	/**
@@ -245,20 +265,20 @@ export class Stats {
 	 * @param days interval of days from now
 	 */
 	async countStatsPerDays(type: string, days: number): Promise<StatPerInterval> {
-		const now = Date.now()
-		const stats: StatPerInterval = []
+		const now = Date.now();
+		const stats: StatPerInterval = [];
 
 		for (let i = 0; i < days; i++) {
-			const date = new Date(now - (i * 24 * 60 * 60 * 1000))
-			const statCount = await this.getCountForGivenDay(type, date)
+			const date = new Date(now - (i * 24 * 60 * 60 * 1000));
+			const statCount = await this.getCountForGivenDay(type, date);
 
 			stats.push({
 				date: formatDate(date, 'onlyDate'),
 				count: statCount,
-			})
+			});
 		}
 
-		return this.cumulateStatPerInterval(stats)
+		return this.cumulateStatPerInterval(stats);
 	}
 
 	/**
@@ -270,19 +290,19 @@ export class Stats {
 			.reverse()
 			.reduce((acc, stat, i) => {
 				if (acc.length === 0) {
-					acc.push(stat)
+					acc.push(stat);
 				} else {
 					acc.push({
 						date: stat.date,
 						count: acc[i - 1].count + stat.count,
-					})
+					});
 				}
 
-				return acc
+				return acc;
 			}, [] as StatPerInterval)
-			.reverse()
+			.reverse();
 
-		return cumulatedStats
+		return cumulatedStats;
 	}
 
 	/**
@@ -293,20 +313,20 @@ export class Stats {
 	sumStats(stats1: StatPerInterval, stats2: StatPerInterval): StatPerInterval {
 		const allDays = [...new Set(stats1.concat(stats2).map(stat => stat.date))]
 			.sort((a, b) => {
-				const aa = a.split('/').reverse().join()
-				const bb = b.split('/').reverse().join()
+				const aa = a.split('/').reverse().join();
+				const bb = b.split('/').reverse().join();
 
-				return aa < bb ? -1 : (aa > bb ? 1 : 0)
-			})
+				return aa < bb ? -1 : (aa > bb ? 1 : 0);
+			});
 
 		const sumStats = allDays.map(day => ({
 			date: day,
 			count:
             (stats1.find(stat => stat.date === day)?.count || 0)
             + (stats2.find(stat => stat.date === day)?.count || 0),
-		}))
+		}));
 
-		return sumStats
+		return sumStats;
 	}
 
 	/**
@@ -315,8 +335,8 @@ export class Stats {
 	 * @param date - day to get the stats for (any time of the day will work as it extract the very beginning and the very ending of the day as the two limits)
 	 */
 	async getCountForGivenDay(type: string, date: Date): Promise<number> {
-		const start = datejs(date).startOf('day').toDate()
-		const end = datejs(date).endOf('day').toDate()
+		const start = datejs(date).startOf('day').toDate();
+		const end = datejs(date).endOf('day').toDate();
 
 		const stats = await this.statsRepo.find({
 			type,
@@ -324,16 +344,16 @@ export class Stats {
 				$gte: start,
 				$lte: end,
 			},
-		})
+		});
 
-		return stats.length
+		return stats.length;
 	}
 
 	/**
 	 * Get the current process usage (CPU, RAM, etc).
 	 */
 	async getPidUsage() {
-		const pidUsage = await pidusage(process.pid)
+		const pidUsage = await pidusage(process.pid);
 
 		return {
 			...pidUsage,
@@ -342,7 +362,7 @@ export class Stats {
 				usedInMb: (pidUsage.memory / (1024 * 1024)).toFixed(1),
 				percentage: (pidUsage.memory / osu.mem.totalMem() * 100).toFixed(1),
 			},
-		}
+		};
 	}
 
 	/**
@@ -358,7 +378,7 @@ export class Stats {
 			platform: await osu.os.platform(),
 
 			// drive: osu.drive.info(),
-		}
+		};
 	}
 
 	/**
@@ -367,7 +387,7 @@ export class Stats {
 	getLatency() {
 		return {
 			ping: this.client.ws.ping,
-		}
+		};
 	}
 
 	/**
@@ -375,11 +395,11 @@ export class Stats {
 	 */
 	@Schedule('59 59 23 * * *')
 	async registerDailyStats() {
-		const totalStats = await this.getTotalStats()
+		const totalStats = await this.getTotalStats();
 
 		for (const type of Object.keys(totalStats)) {
-			const value = JSON.stringify(totalStats[type as keyof typeof totalStats])
-			await this.register(type, value)
+			const value = JSON.stringify(totalStats[type as keyof typeof totalStats]);
+			await this.register(type, value);
 		}
 	}
 

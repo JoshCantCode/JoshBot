@@ -1,5 +1,4 @@
 export const logsConfig: LogsConfigType = {
-
 	debug: false, // set the discordx client debug logs
 	logTailMaxSize: 50, // max size of the last logs kept in memory
 
@@ -12,7 +11,6 @@ export const logsConfig: LogsConfigType = {
 	// - if the log should be consoled
 	// - if the log should be saved to the log files
 	// - if the log should be sent to a discord channel (providing its IP)
-
 	interaction: {
 		file: true,
 		console: true,
@@ -49,4 +47,9 @@ export const logsConfig: LogsConfigType = {
 		console: true,
 		channel: null,
 	},
-}
+	punishment: {
+		file: false,
+		console: true,
+		channel: null,
+	},
+};

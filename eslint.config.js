@@ -6,7 +6,7 @@ module.exports = antfu(
 		stylistic: {
 			indent: 'tab',
 			quotes: 'single',
-			semi: false,
+			semi: true,
 
 			// https://eslint.style/packages/ts
 			overrides: {

@@ -23,7 +23,7 @@ type GeneralConfigType = {
 		type: 'PLAYING' | 'STREAMING' | 'LISTENING' | 'WATCHING' | 'CUSTOM' | 'COMPETING'
 	}[]
 
-}
+};
 
 type DatabaseConfigType = {
 
@@ -33,7 +33,7 @@ type DatabaseConfigType = {
 		enabled: boolean
 		path: `${string}/`
 	}
-}
+};
 
 type LogsConfigType = {
 
@@ -65,6 +65,12 @@ type LogsConfigType = {
 		channel: string | null
 	}
 
+	punishment: {
+		file: boolean
+		console: boolean
+		channel: string | null
+	}
+
 	guild: {
 		file: boolean
 		console: boolean
@@ -76,7 +82,7 @@ type LogsConfigType = {
 		console: boolean
 		channel: string | null
 	}
-}
+};
 
 type StatsConfigType = {
 
@@ -84,10 +90,10 @@ type StatsConfigType = {
 
 		exclude: InteractionsConstants[]
 	}
-}
+};
 
 type APIConfigType = {
 
 	enabled: boolean
 	port: number
-}
+};
