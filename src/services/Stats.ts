@@ -20,10 +20,6 @@ const allInteractions = {
 		{ type: 'CHAT_INPUT_COMMAND_INTERACTION' },
 		{ type: 'USER_CONTEXT_MENU_COMMAND_INTERACTION' },
 		{ type: 'MESSAGE_CONTEXT_MENU_COMMAND_INTERACTION' },
-		{ type: 'USER_BAN' },
-		{ type: 'USER_UNBAN' },
-		{ type: 'USER_WARN' },
-		{ type: 'USER_MUTE' },
 	],
 };
 

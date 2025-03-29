@@ -25,16 +25,16 @@ export default class WarnCommand {
 	@Guard(
 		UserPermissions(['Administrator'])
 	)
-	async ban(
+	async warn(
         @SlashOption({
         	name: 'user',
-        	description: 'The user to ban',
+        	description: 'The user to warn',
         	type: ApplicationCommandOptionType.User,
         	required: true,
         }) user: GuildMember,
         @SlashOption({
         	name: 'reason',
-        	description: 'The user to ban',
+        	description: 'The reason for the warn',
         	type: ApplicationCommandOptionType.String,
         	required: false,
         }) reason: string,

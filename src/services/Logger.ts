@@ -11,6 +11,7 @@ import { BaseMessageOptions, GuildMember, TextChannel, ThreadChannel, User } fro
 import { Client, MetadataStorage } from 'discordx';
 import ora from 'ora';
 import { Punishment } from 'src/entities/Punishment';
+import { PunishmentType } from 'src/utils/types/punishments';
 import { parse, StackFrame } from 'stacktrace-parser';
 import { delay, inject } from 'tsyringe';
 
@@ -392,7 +393,7 @@ export class Logger {
 			this.discordChannel(logsConfig.punishment.channel, {
 				embeds: [{
 					title: `User ${`${ban.type.toLowerCase()}ed`}`,
-					description: `**${ban.userId}** has been ${`${ban.type.toLowerCase()}ed`} in guild **${ban.guildId}** by <@**${ban.moderator}**> for **${ban.reason}**`,
+					description: `**${user.displayName}** has been ${`${ban.type.toLowerCase() + (ban.type === PunishmentType.BAN ? 'n' : '')}ed`} in guild **${ban.guildId}** by <@${moderator.id}> (\`${moderator.id}\`) for **${ban.reason}**`,
 					color: 0xFF0000,
 					timestamp: new Date().toISOString(),
 				}],

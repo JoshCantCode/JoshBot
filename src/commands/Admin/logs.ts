@@ -1,15 +1,11 @@
 import { Pagination, PaginationType } from '@discordx/pagination';
 import { Category } from '@discordx/utilities';
-import { ApplicationCommandOptionType, Client, CommandInteraction, EmbedBuilder } from 'discord.js';
-import { Punishment } from 'src/entities/Punishment';
+import { CommandInteraction, EmbedBuilder } from 'discord.js';
 import { Punishments } from 'src/services/Punishment';
-import { PunishmentType } from 'src/utils/types/punishments';
 
-import { Discord, Injectable, Slash, SlashOption } from '@/decorators';
-import { env } from '@/env';
+import { Discord, Injectable, Slash } from '@/decorators';
 import { Guard, UserPermissions } from '@/guards';
-import { Database, Logger, Stats } from '@/services';
-import { chunkArray, resolveGuild } from '@/utils/functions';
+import { chunkArray, resolveGuild, simpleErrorEmbed } from '@/utils/functions';
 
 @Discord()
 @Injectable()
@@ -24,14 +20,14 @@ export default class LogsCommand {
 	@Guard(
 		UserPermissions(['Administrator'])
 	)
-	async ban(
+	async logs(
 		interaction: CommandInteraction
 	) {
 		const guild = resolveGuild(interaction);
 
 		const logs = await this.punishments.getAllPunishments();
 		if (!logs.length) {
-			return interaction.reply('No logs found');
+			simpleErrorEmbed(interaction, 'No logs found');
 		}
 
 		const embeds = chunkArray(logs, 7).map((chunk, index) => {
@@ -43,9 +39,10 @@ export default class LogsCommand {
 			chunk.forEach((log) => {
 				const moderator = guild?.members.cache.get(log.moderator);
 				const user = guild?.members.cache.get(log.userId);
+				console.log(log.duration);
 				embed.addFields({
-					name: `${log.type} ${log.id} - User: ${user?.displayName}`,
-					value: `Reason: ${log.reason}\nModerator: ${moderator?.displayName}`,
+					name: `${log.type} ${log.id} - ${user?.displayName}`,
+					value: `Reason: \`${log.reason}\`\nModerator: ${moderator?.displayName} (${moderator})\nExpires: ${log.duration ? `<t:${log.duration}:R>` : 'No'}`,
 				});
 			});
 

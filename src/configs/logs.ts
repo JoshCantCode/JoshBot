@@ -14,7 +14,7 @@ export const logsConfig: LogsConfigType = {
 	interaction: {
 		file: true,
 		console: true,
-		channel: null,
+		channel: '1213491919360106564',
 
 		// exclude some interactions types
 		exclude: [
@@ -45,11 +45,11 @@ export const logsConfig: LogsConfigType = {
 	error: {
 		file: true,
 		console: true,
-		channel: null,
+		channel: '1213491919360106564',
 	},
 	punishment: {
 		file: false,
 		console: true,
-		channel: null,
+		channel: '1213491919360106564',
 	},
 };

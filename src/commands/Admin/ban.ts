@@ -8,7 +8,7 @@ import { Discord, Injectable, Slash, SlashOption } from '@/decorators';
 import { env } from '@/env';
 import { Guard, UserPermissions } from '@/guards';
 import { Database, Logger, Stats } from '@/services';
-import { resolveGuild, simpleSuccessEmbed } from '@/utils/functions';
+import { parseDuration, resolveGuild, simpleSuccessEmbed, syncUser } from '@/utils/functions';
 
 @Discord()
 @Injectable()
@@ -34,7 +34,7 @@ export default class BanCommand {
         }) user: GuildMember,
 		@SlashOption({
         	name: 'reason',
-        	description: 'The user to ban',
+        	description: 'The reason for the ban',
         	type: ApplicationCommandOptionType.String,
         	required: true,
 		}) reason: string,
@@ -47,22 +47,23 @@ export default class BanCommand {
         	interaction: CommandInteraction
 	) {
 		const guild = resolveGuild(interaction);
+		await syncUser(user.user);
 		const ban = new Punishment();
 		ban.reason = reason;
 		ban.guildId = guild?.id || env.TEST_GUILD_ID;
 		ban.userId = user.id;
 		ban.moderator = interaction.user.id;
-		ban.duration = duration;
+		ban.duration = parseDuration(duration) + BigInt(Date.now() / 1000);
 		ban.type = PunishmentType.BAN;
 
+		simpleSuccessEmbed(interaction, `User ${user.displayName} has been banned for \`${reason ?? 'Being an asshole'}\``);
 		await this.bans.registerPunishment(ban);
-		await interaction.guild?.members.ban(user, { reason });
-		simpleSuccessEmbed(interaction, `User ${user.displayName} has been warned for ${reason ?? `Being an asshole`}`);
-
 		// Log everything necessary
 		await this.stats.registerPunishment(ban);
 		const moderator = await interaction.guild?.members.fetch(interaction.user.id);
 		this.logger.logPunishment(ban, user, moderator!);
+
+		await interaction.guild?.members.ban(user, { reason });
 	}
 
 }

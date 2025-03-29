@@ -33,8 +33,8 @@ export class Punishment extends CustomBaseEntity {
 	@Property()
     active: boolean = true;
 
-	@Property({ nullable: true })
-	duration?: string;
+	@Property({ nullable: true, type: 'bigint' })
+	duration?: bigint;
 
 	@Property({ type: 'string' })
 	type: PunishmentType;
